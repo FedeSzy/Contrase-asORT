@@ -2,87 +2,82 @@
 """
 Cliente de prueba de login (solo el cliente).
 
-Le pega a UN SERVIDOR LOCAL que vos levantas aparte, en tu propia maquina.
-Prueba combinaciones de contrasena para el usuario 51066056 y mira la
-respuesta HTTP (200 = entro, otra cosa = no).
+Le pega a TU endpoint (una URL tuya) y prueba combinaciones de contrasena
+para el usuario 51066056. Cuando alguna da 200, te avisa que la adivino.
 
-IMPORTANTE: esto es para TU server local, del que sos duenio. Usarlo contra un
-sitio ajeno es acceso no autorizado (ilegal), aunque sea para aprender.
+IMPORTANTE: usalo SOLO contra un servidor tuyo, del que sos duenio. Probar
+contrasenas contra un sitio ajeno es acceso no autorizado (ilegal).
 
 Uso:
-    python cliente.py                 # prueba la lista de abajo
-    python cliente.py generar         # genera todas las combinaciones (fuerza bruta)
+    python cliente.py                 # genera combinaciones (fuerza bruta) -- por defecto
+    python cliente.py lista           # prueba una lista fija en vez de generar
 """
 
 import sys
-import itertools
 import string
+import itertools
 
 import requests  # si no lo tenes: pip install requests
 
-# ----- Config (ajusta a como levantes tu server) -----
-HOST = "127.0.0.1"          # tu compu. Luego podes poner la IP local, ej "192.168.0.15"
-PORT = 8000
-RUTA = "/login"             # el endpoint de login de tu server
-CAMPO_USUARIO = "u"         # nombre del campo del usuario que espera tu server
-CAMPO_PASS = "password"     # nombre del campo de la contrasena
+# ================== CONFIG (ajusta esto a tu endpoint) ==================
+URL = "http://127.0.0.1:8000/login"   # <-- PONE ACA TU URL / ENDPOINT
+CAMPO_USUARIO = "u"                    # nombre del campo del usuario que espera tu server
+CAMPO_PASS = "password"               # nombre del campo de la contrasena
 
 USUARIO = "51066056"
+
+# Que caracteres y que largo generar en modo fuerza bruta.
+# Para testear con "000" dejalo en digits (encuentra "000" al toque).
+CHARSET = string.digits               # ver tabla en el README de abajo para "todos los caracteres"
+LARGO_MIN = 1
+LARGO_MAX = 3
+# =======================================================================
 
 
 def probar(password):
     """Manda un POST de login y devuelve True si entro (codigo 200)."""
-    url = f"http://{HOST}:{PORT}{RUTA}"
     datos = {CAMPO_USUARIO: USUARIO, CAMPO_PASS: password}
     try:
-        r = requests.post(url, data=datos, timeout=5)
+        r = requests.post(URL, data=datos, timeout=5)
     except requests.exceptions.ConnectionError:
-        print(f"[error] no me puedo conectar a {url} -- esta levantado tu server?")
+        print(f"[error] no me puedo conectar a {URL} -- esta levantado tu server?")
         sys.exit(1)
-    ok = r.status_code == 200
-    print(f"  u={USUARIO}  pass={password!r}  ->  {r.status_code}  {'OK' if ok else ''}")
-    return ok
-
-
-def desde_lista():
-    """Prueba una lista de contrasenas (rapido, lo mas comun)."""
-    candidatos = ["1234", "admin", "password", "demo1234", "qwerty"]
-    print(f"[cliente] probando {len(candidatos)} contrasenas de la lista...")
-    for pw in candidatos:
-        if probar(pw):
-            print(f"[cliente] >>> entro con: {pw}")
-            return
-    print("[cliente] ninguna de la lista funciono")
+    return r.status_code == 200
 
 
 def generando():
-    """
-    Genera TODAS las combinaciones con un juego de caracteres (fuerza bruta).
+    """Genera TODAS las combinaciones de CHARSET y las prueba una por una."""
+    total = sum(len(CHARSET) ** n for n in range(LARGO_MIN, LARGO_MAX + 1))
+    print(f"[cliente] generando combinaciones de '{CHARSET}' "
+          f"largo {LARGO_MIN}-{LARGO_MAX}  ({total} en total)...")
 
-    OJO: crece explosivamente. Con digitos (10 chars) y largo 4 son 10.000
-    pruebas; con letras+digitos (36) y largo 4 ya son ~1,7 millones. Empeza
-    chico. Ajusta CHARSET y LARGO_MAX con cuidado.
-    """
-    charset = string.digits                 # ej: string.ascii_lowercase + string.digits
-    largo_min = 1
-    largo_max = 4
-
-    total = sum(len(charset) ** n for n in range(largo_min, largo_max + 1))
-    print(f"[cliente] generando combinaciones de '{charset}' largo {largo_min}-{largo_max} "
-          f"({total} en total)...")
-
-    for largo in range(largo_min, largo_max + 1):
-        for combo in itertools.product(charset, repeat=largo):
+    intentos = 0
+    for largo in range(LARGO_MIN, LARGO_MAX + 1):
+        for combo in itertools.product(CHARSET, repeat=largo):
             pw = "".join(combo)
+            intentos += 1
             if probar(pw):
-                print(f"[cliente] >>> entro con: {pw}")
-                return
-    print("[cliente] no encontre ninguna combinacion valida")
+                print(f"\n[cliente] >>> ADIVINADA en el intento {intentos}: la contrasena es '{pw}'")
+                return pw
+    print(f"\n[cliente] no la encontre despues de {intentos} intentos")
+    return None
+
+
+def desde_lista():
+    """Prueba una lista fija de contrasenas (mas rapido)."""
+    candidatos = ["1234", "admin", "password", "000", "qwerty"]
+    print(f"[cliente] probando {len(candidatos)} contrasenas de la lista...")
+    for pw in candidatos:
+        if probar(pw):
+            print(f"[cliente] >>> ADIVINADA: la contrasena es '{pw}'")
+            return pw
+    print("[cliente] ninguna de la lista funciono")
+    return None
 
 
 if __name__ == "__main__":
-    modo = sys.argv[1] if len(sys.argv) > 1 else "lista"
-    if modo == "generar":
-        generando()
-    else:
+    modo = sys.argv[1] if len(sys.argv) > 1 else "generar"
+    if modo == "lista":
         desde_lista()
+    else:
+        generando()
