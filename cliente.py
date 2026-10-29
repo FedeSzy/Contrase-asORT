@@ -71,3 +71,4 @@ def main(modo):
 if __name__ == "__main__":
     modo = sys.argv[1] if len(sys.argv) > 1 else "generar"
     main(modo)
+    input("\nPresiona Enter para salir...")
