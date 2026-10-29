@@ -45,7 +45,24 @@ def buscar_por_lista(usuario):
     return None
 
 
+def diagnostico():
+    usuario = USUARIOS[0]
+    pw_mal = input("Contrasena que sabes que esta MAL: ")
+    pw_bien = input("Contrasena que sabes que esta BIEN: ")
+    for etiqueta, pw in [("MAL", pw_mal), ("BIEN", pw_bien)]:
+        r = requests.post(URL, data={CAMPO_USUARIO: usuario, CAMPO_PASS: pw}, timeout=5)
+        print(f"\n----- {etiqueta}  (pass={pw!r}) -----")
+        print(f"  status_code : {r.status_code}")
+        print(f"  largo body  : {len(r.text)}")
+        print(f"  url final   : {r.url}")
+        print(f"  cookies     : {r.cookies.get_dict()}")
+        print(f"  body (300)  : {r.text[:300]!r}")
+
+
 def main(modo):
+    if modo == "diag":
+        diagnostico()
+        return
     buscar = buscar_por_lista if modo == "lista" else buscar_por_generacion
     print(f"[cliente] modo={modo}  usuarios a probar: {len(USUARIOS)}\n")
 
