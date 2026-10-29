@@ -12,7 +12,7 @@ USUARIOS = [
     "51066056",
 ]
 
-CHARSET = string.digits
+CHARSET = string.digits + string.ascii_letters + string.punctuation
 LARGO_MIN = 1
 LARGO_MAX = 3
 
